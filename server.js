@@ -1,4 +1,5 @@
 const http = require('http');
+const fs = require('fs');
 const path = require('path');
 
 // Prevent unhandled async errors (e.g. DB connection retries) from crashing Passenger on cPanel
@@ -8,6 +9,33 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (reason) => {
   console.error('[UNHANDLED REJECTION]', reason);
 });
+
+// Auto-patch mysql2 for Node 10 / 12 compatibility on cPanel if needed
+try {
+  const mysql2PkgPath = require.resolve('mysql2/package.json');
+  const mysql2Dir = path.dirname(mysql2PkgPath);
+
+  const poolClusterPath = path.join(mysql2Dir, 'lib', 'pool_cluster.js');
+  if (fs.existsSync(poolClusterPath)) {
+    const content = fs.readFileSync(poolClusterPath, 'utf8');
+    if (content.indexOf('node?.pool') !== -1) {
+      fs.writeFileSync(poolClusterPath, content.replace(/node\?\.pool/g, '(node && node.pool)'), 'utf8');
+    }
+  }
+
+  const tracingPath = path.join(mysql2Dir, 'lib', 'tracing.js');
+  if (fs.existsSync(tracingPath)) {
+    let content = fs.readFileSync(tracingPath, 'utf8');
+    if (content.indexOf('?.') !== -1 || content.indexOf('??') !== -1) {
+      content = content
+        .replace(/typeof dc\?\.tracingChannel === 'function'/g, "Boolean(dc && typeof dc.tracingChannel === 'function')")
+        .replace(/channel\.hasSubscribers \?\? channel\.start\?\.hasSubscribers \?\? false/g, 'Boolean(channel.hasSubscribers || (channel.start && channel.start.hasSubscribers))');
+      fs.writeFileSync(tracingPath, content, 'utf8');
+    }
+  }
+} catch (patchErr) {
+  // Ignore if mysql2 is not yet resolved
+}
 
 let app;
 
@@ -39,7 +67,7 @@ try {
   // Allowed origins for production (wholesale.bhoopreet.com) & local development
   const allowedOrigins = [
     'https://wholesale.bhoopreet.com',
-    'https://www.wholesale.bhoopreet.com',
+    'http://wholesale.bhoopreet.com',
     'https://backsale.bhoopreet.com',
     'http://backsale.bhoopreet.com',
     'http://localhost:5173',
