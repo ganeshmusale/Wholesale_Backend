@@ -31,7 +31,7 @@ exports.getAllBusinesses = async (req, res) => {
       ${whereClause}
     `;
     const [countResult] = await pool.query(countQuery, params);
-    const total = countResult[0]?.total || 0;
+    const total = (countResult[0] && countResult[0].total) || 0;
 
     let dataQuery = `
       SELECT b.*, u.full_name AS owner_name, u.email AS owner_email, u.phone AS owner_phone

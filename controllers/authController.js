@@ -317,7 +317,7 @@ exports.getAllUsers = async (req, res) => {
       ${whereClause}
     `;
     const [countResult] = await pool.query(countQuery, params);
-    const total = countResult[0]?.total || 0;
+    const total = (countResult[0] && countResult[0].total) || 0;
 
     let dataQuery = `
       SELECT u.id, u.full_name, u.email, u.phone, u.role, u.city AS user_city, u.is_active, u.created_at,

@@ -208,7 +208,7 @@ exports.getProducts = async (req, res) => {
       ${whereClause}
     `;
     const [countResult] = await pool.query(countQuery, params);
-    const total = countResult[0]?.total || 0;
+    const total = (countResult[0] && countResult[0].total) || 0;
 
     let dataQuery = `
       SELECT p.*, c.name AS category_name, u.name AS unit_name, u.symbol AS unit_symbol, u.conversion_to_kg

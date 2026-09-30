@@ -80,7 +80,7 @@ exports.getMarketRates = async (req, res) => {
       ${whereClause}
     `;
     const [countResult] = await pool.query(countQuery, params);
-    const total = countResult[0]?.total || 0;
+    const total = (countResult[0] && countResult[0].total) || 0;
 
     let dataQuery = `
       SELECT mr.*, m.name AS market_name, m.city AS market_city,
@@ -156,7 +156,7 @@ exports.getConsolidatedRates = async (req, res) => {
       let lowestMarket = null;
 
       markets.forEach((m) => {
-        const rateInfo = rateMap[prod.id]?.[m.id];
+        const rateInfo = rateMap[prod.id] && rateMap[prod.id][m.id];
         if (rateInfo) {
           marketRates[m.id] = rateInfo.rate;
           if (lowestRate === null || rateInfo.rate < lowestRate) {
@@ -284,7 +284,7 @@ exports.getDailyStorePriceSheet = async (req, res) => {
         trend,
         min_bulk_qty: todayEntry ? parseFloat(todayEntry.min_bulk_qty) : parseFloat(prod.default_bulk_min_qty),
         is_available: todayEntry ? Boolean(todayEntry.is_available) : true,
-        notes: todayEntry?.notes || '',
+        notes: (todayEntry && todayEntry.notes) || '',
         mandi_benchmarks: mandiMap[prod.id] || []
       };
     });
@@ -343,7 +343,7 @@ exports.saveDailyStorePriceSheet = async (req, res) => {
         parseFloat(item.wholesale_price),
         parseFloat(item.min_bulk_qty || 50.00),
         item.is_available !== false,
-        req.user?.id || null,
+        (req.user && req.user.id) || null,
         item.notes || null
       ]);
     }

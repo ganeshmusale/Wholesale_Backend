@@ -217,7 +217,7 @@ exports.getOrders = async (req, res) => {
       ${whereClause}
     `;
     const [countResult] = await pool.query(countQuery, params);
-    const total = countResult[0]?.total || 0;
+    const total = (countResult[0] && countResult[0].total) || 0;
 
     // 2. Fetch paginated records
     let dataQuery = `

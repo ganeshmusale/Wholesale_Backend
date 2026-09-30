@@ -37,7 +37,7 @@ exports.getMarketComparisonReport = async (req, res) => {
       let maxMarket = null;
 
       markets.forEach(m => {
-        const price = rateMap[prod.id]?.[m.id] ?? null;
+        const price = (rateMap[prod.id] && rateMap[prod.id][m.id] !== undefined) ? rateMap[prod.id][m.id] : null;
         marketPrices[m.name] = price;
         if (price !== null) {
           if (price < minPrice) {

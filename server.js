@@ -39,7 +39,7 @@ try {
   // Allowed origins for production (wholesale.bhoopreet.com) & local development
   const allowedOrigins = [
     'https://wholesale.bhoopreet.com',
-    'http://wholesale.bhoopreet.com',
+    'https://www.wholesale.bhoopreet.com',
     'https://backsale.bhoopreet.com',
     'http://backsale.bhoopreet.com',
     'http://localhost:5173',
