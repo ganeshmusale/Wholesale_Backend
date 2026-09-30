@@ -1,5 +1,7 @@
 const mysql = require('mysql2/promise');
+const fs = require('fs');
 const path = require('path');
+const bcrypt = require('bcryptjs');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const pool = mysql.createPool({
@@ -11,14 +13,44 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  dateStrings: true
+  dateStrings: true,
+  multipleStatements: true
 });
 
-// Test connection function
+// Test connection and auto-initialize tables if database is empty (for cPanel deployment)
 async function testConnection() {
   try {
     const connection = await pool.getConnection();
-    console.log(`Connected to MySQL database "${process.env.DB_NAME || 'wholesale_db'}" successfully.✅`);
+    const dbName = process.env.DB_NAME || 'wholesale_db';
+    console.log(`Connected to MySQL database "${dbName}" successfully.✅`);
+
+    try {
+      const [tables] = await connection.query("SHOW TABLES LIKE 'users'");
+      if (tables.length === 0) {
+        console.log('No tables found in database. Auto-initializing schema and seed data...');
+        const schemaPath = path.join(__dirname, '..', 'database', 'schema.sql');
+        let schemaSql = fs.readFileSync(schemaPath, 'utf8');
+        // Remove hardcoded CREATE DATABASE and USE statements for cPanel shared DB compatibility
+        schemaSql = schemaSql
+          .replace(/CREATE DATABASE IF NOT EXISTS\s+`?wholesale_db`?[^;]*;/gi, '')
+          .replace(/USE\s+`?wholesale_db`?\s*;/gi, '');
+
+        const defaultPass = process.env.ADMIN_INITIAL_PASSWORD || 'admin123';
+        const salt = await bcrypt.genSalt(10);
+        const defaultHash = await bcrypt.hash(defaultPass, salt);
+        schemaSql = schemaSql.replace(/\$2a\$10\$[A-Za-z0-9./]{53}/g, () => defaultHash);
+
+        await connection.query(schemaSql);
+        await connection.query(
+          'UPDATE users SET password_hash = ? WHERE email IN (?, ?, ?)',
+          [defaultHash, 'admin@wholesale.com', 'delivery@wholesale.com', 'suresh@veggieshop.com']
+        );
+        console.log('Database schema and default accounts initialized automatically!✅');
+      }
+    } catch (initErr) {
+      console.warn('Auto-schema check warning:', initErr.message);
+    }
+
     connection.release();
     return true;
   } catch (error) {
@@ -31,3 +63,4 @@ module.exports = {
   pool,
   testConnection
 };
+

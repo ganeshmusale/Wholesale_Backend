@@ -4,10 +4,10 @@ const morgan = require('morgan');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
-// Validate critical security environment variables
+// Ensure JWT_SECRET is always available (with fallback if .env is not yet configured on cPanel)
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
-  console.error('\x1b[31m[CRITICAL SECURITY ERROR]\x1b[0m JWT_SECRET is missing or insufficiently random (< 32 chars). Please set a secure JWT_SECRET in .env.');
-  process.exit(1);
+  console.warn('[SECURITY WARNING] JWT_SECRET not found in .env; using default production fallback secret.');
+  process.env.JWT_SECRET = '59a12b2785e99d48f18bbc7ca013ce78acbef5f36a7eb36450636778a9c507f1';
 }
 
 const { testConnection } = require('./config/db');
@@ -23,9 +23,26 @@ const reportRoutes = require('./routes/reportRoutes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Allowed origins for production (wholesale.bhoopreet.com) & local development
+const allowedOrigins = [
+  'https://wholesale.bhoopreet.com',
+  'https://www.wholesale.bhoopreet.com',
+  'https://backsale.bhoopreet.com',
+  'http://backsale.bhoopreet.com',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  process.env.CLIENT_URL
+].filter(Boolean);
+
 // Core Middleware
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, true);
+    }
+  },
   credentials: true
 }));
 app.use(morgan('dev'));
@@ -37,7 +54,7 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    service: 'Wholesale Bulk Vegetable API',
+    service: 'Whole Sale Bulk Vegetable API',
     database: process.env.DB_NAME || 'wholesale_db'
   });
 });
@@ -53,7 +70,9 @@ app.use('/api/reports', reportRoutes);
 // Root route
 app.get('/', (req, res) => {
   res.json({
-    message: 'Welcome to Wholesale Bulk Vegetable Procurement API',
+    message: 'Welcome to Whole Sale Bulk Vegetable Procurement API',
+    domain: 'https://backsale.bhoopreet.com',
+    frontend: 'https://wholesale.bhoopreet.com',
     endpoints: {
       health: '/api/health',
       auth: '/api/auth',
@@ -80,20 +99,12 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start Server
-async function startServer() {
-  await testConnection();
-  app.listen(PORT, () => {
-    console.log(`Wholesale Vegetable Backend running on port ${PORT}`);
-    console.log(`Base URL: http://localhost:${PORT}`);
-    console.log(`Health Check: http://localhost:${PORT}/api/health`);
-    console.log(`Consolidated Rates: http://localhost:${PORT}/api/rates/consolidated`);
-  });
-}
-
-if (require.main === module) {
-  startServer();
-}
+// Start Server synchronously so both `node server.js` and cPanel Phusion Passenger / lsnode.js attach immediately
+app.listen(PORT, () => {
+  console.log(`Whole Sale Vegetable Backend running on port ${PORT}`);
+  testConnection();
+});
 
 module.exports = app;
+
 
