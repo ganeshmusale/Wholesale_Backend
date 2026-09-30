@@ -1,5 +1,6 @@
 ---
 deployment:
   tasks:
+    - /bin/cp -f server.js app.js 2>/dev/null || true
     - export DEPLOYPATH=/home/$USER/backsale.bhoopreet.com/
     - /bin/cp -Rf * $DEPLOYPATH 2>/dev/null || true
