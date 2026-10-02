@@ -266,3 +266,120 @@ exports.getKhataLedgerReport = async (req, res) => {
   }
 };
 
+// 5. Date-wise Purchases & Haat Procurement Report
+exports.getPurchasesReport = async (req, res) => {
+  try {
+    const { date_from, date_to, product_id, market_id } = req.query;
+
+    let whereClause = ' WHERE 1=1';
+    const params = [];
+
+    if (date_from) {
+      whereClause += ' AND pu.purchase_date >= ?';
+      params.push(date_from);
+    }
+    if (date_to) {
+      whereClause += ' AND pu.purchase_date <= ?';
+      params.push(date_to);
+    }
+    if (product_id) {
+      whereClause += ' AND pu.product_id = ?';
+      params.push(product_id);
+    }
+    if (market_id) {
+      whereClause += ' AND pu.market_id = ?';
+      params.push(market_id);
+    }
+
+    // 1. Detailed Rows sorted by date and product
+    const detailQuery = `
+      SELECT 
+        pu.id,
+        pu.purchase_date,
+        pu.product_id,
+        p.name AS vegetable_name,
+        c.name AS category_name,
+        COALESCE(pu.market_name, m.name, 'Direct Haat / Mandi') AS market_name,
+        pu.supplier_name,
+        u.symbol AS unit_symbol,
+        pu.quantity,
+        pu.unit_price,
+        pu.total_price,
+        pu.transport_cost,
+        pu.payment_status,
+        pu.notes
+      FROM purchases pu
+      JOIN products p ON p.id = pu.product_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN markets m ON m.id = pu.market_id
+      JOIN units u ON u.id = pu.unit_id
+      ${whereClause}
+      ORDER BY pu.purchase_date DESC, p.name ASC, pu.id DESC
+    `;
+    const [rows] = await pool.query(detailQuery, params);
+
+    // 2. Date-wise Grouped Breakdown
+    const dateGroupingQuery = `
+      SELECT 
+        pu.purchase_date,
+        COUNT(pu.id) AS total_lots,
+        COUNT(DISTINCT pu.product_id) AS unique_vegetables,
+        SUM(pu.quantity) AS total_quantity,
+        SUM(pu.total_price) AS total_amount,
+        ROUND(SUM(pu.total_price) / SUM(pu.quantity), 2) AS avg_rate
+      FROM purchases pu
+      ${whereClause}
+      GROUP BY pu.purchase_date
+      ORDER BY pu.purchase_date DESC
+    `;
+    const [dateGroups] = await pool.query(dateGroupingQuery, params);
+
+    // 3. Product-wise Grouped Breakdown (with weighted average purchase price)
+    const productGroupingQuery = `
+      SELECT 
+        pu.product_id,
+        p.name AS vegetable_name,
+        c.name AS category_name,
+        u.symbol AS unit_symbol,
+        COUNT(pu.id) AS total_lots,
+        SUM(pu.quantity) AS total_quantity,
+        SUM(pu.total_price) AS total_amount,
+        ROUND(SUM(pu.total_price) / SUM(pu.quantity), 2) AS weighted_avg_rate,
+        MIN(pu.unit_price) AS min_rate,
+        MAX(pu.unit_price) AS max_rate
+      FROM purchases pu
+      JOIN products p ON p.id = pu.product_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      JOIN units u ON u.id = pu.unit_id
+      ${whereClause}
+      GROUP BY pu.product_id, p.name, c.name, u.symbol
+      ORDER BY total_amount DESC
+    `;
+    const [productGroups] = await pool.query(productGroupingQuery, params);
+
+    // Overall summary across the date range
+    const summary = rows.reduce((acc, r) => {
+      acc.total_lots += 1;
+      acc.total_quantity += parseFloat(r.quantity || 0);
+      acc.total_amount += parseFloat(r.total_price || 0);
+      acc.total_transport += parseFloat(r.transport_cost || 0);
+      return acc;
+    }, { total_lots: 0, total_quantity: 0, total_amount: 0, total_transport: 0 });
+
+    summary.avg_rate = summary.total_quantity > 0
+      ? Math.round((summary.total_amount / summary.total_quantity) * 100) / 100
+      : 0;
+
+    return res.json({
+      success: true,
+      summary,
+      date_groups: dateGroups,
+      product_groups: productGroups,
+      data: rows
+    });
+  } catch (error) {
+    console.error('Error generating purchases report:', error);
+    return res.status(500).json({ success: false, message: 'Failed to generate purchases report.', error: error.message });
+  }
+};
+

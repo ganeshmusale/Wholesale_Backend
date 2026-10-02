@@ -60,6 +60,7 @@ try {
   const marketRateRoutes = require('./routes/marketRateRoutes');
   const orderRoutes = require('./routes/orderRoutes');
   const reportRoutes = require('./routes/reportRoutes');
+  const purchaseRoutes = require('./routes/purchaseRoutes');
 
   app = express();
   const PORT = process.env.PORT || 5000;
@@ -117,6 +118,7 @@ try {
   app.use('/api/rates', marketRateRoutes);
   app.use('/api/orders', orderRoutes);
   app.use('/api/reports', reportRoutes);
+  app.use('/api/purchases', purchaseRoutes);
 
   // Root route
   app.get('/', (req, res) => {
@@ -124,13 +126,13 @@ try {
       message: 'Welcome to Whole Sale Bulk Vegetable Procurement API',
       domain: 'https://backsale.bhoopreet.com',
       frontend: 'https://wholesale.shetkarimall.com',
-      frontend_legacy: 'https://wholesale.bhoopreet.com',
       node_version: process.version,
       endpoints: {
         health: '/api/health',
         auth: '/api/auth',
         masters: '/api/masters/all',
         rates: '/api/rates/consolidated',
+        purchases: '/api/purchases',
         orders: '/api/orders',
         reports: '/api/reports/market-comparison'
       }
