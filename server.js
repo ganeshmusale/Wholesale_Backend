@@ -64,7 +64,7 @@ try {
   app = express();
   const PORT = process.env.PORT || 5000;
 
-  // Allowed origins for production (wholesale.bhoopreet.com) & local development
+  // Allowed origins for production (wholesale.shetkarimall.com) & local development
   const allowedOrigins = [
     'https://wholesale.shetkarimall.com',
     'http://wholesale.shetkarimall.com',
@@ -123,7 +123,8 @@ try {
     res.json({
       message: 'Welcome to Whole Sale Bulk Vegetable Procurement API',
       domain: 'https://backsale.bhoopreet.com',
-      frontend: 'https://wholesale.bhoopreet.com',
+      frontend: 'https://wholesale.shetkarimall.com',
+      frontend_legacy: 'https://wholesale.bhoopreet.com',
       node_version: process.version,
       endpoints: {
         health: '/api/health',
