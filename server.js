@@ -66,10 +66,8 @@ try {
 
   // Allowed origins for production (wholesale.bhoopreet.com) & local development
   const allowedOrigins = [
-    'https://wholesale.bhoopreet.com',
-    'http://wholesale.bhoopreet.com',
-    'https://backsale.bhoopreet.com',
-    'http://backsale.bhoopreet.com',
+    'https://wholesale.shetkarimall.com',
+    'http://wholesale.shetkarimall.com',
     'http://localhost:5173',
     'http://localhost:3000',
     process.env.CLIENT_URL
